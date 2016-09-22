@@ -109,12 +109,29 @@ public class Bayespam
         
                 while (st.hasMoreTokens())                  // while there are stille words left..
                 {
-                    addWord(st.nextToken(), type);                  // add them to the vocabulary
+		    /// Temporarily store token for parsing
+		    String nextWord = st.nextToken();
+		    /// Make word lower case, remove every symbol that is not a lower case letter
+		    nextWord = nextWord.toLowerCase().replaceAll("[^a-z]", "");
+		    /// Only add words to the vocabulary with more than three characters
+		    if (nextWord.length() >= 4) {	      
+		      addWord(nextWord, type);                  // add them to the vocabulary
+		    }
                 }
             }
 
             in.close();
         }
+    }
+
+    private static void trainClassifier() {
+      long nMessagesRegular = listing_regular.length;
+      long nMessagesSpam = listing_spam.length;
+      long nMessagesTotal = nMessagesRegular + nMessagesSpam;
+      long pRegular = nMessagesRegular / nMessagesTotal;
+      long pSpam = nMessagesSpam / nMessagesTotal;
+
+      
     }
    
     public static void main(String[] args)
@@ -138,7 +155,9 @@ public class Bayespam
         readMessages(MessageType.SPAM);
 
         // Print out the hash table
-        printVocab();
+        //printVocab();
+
+	trainClassifier();
         
         // Now all students must continue from here:
         //
