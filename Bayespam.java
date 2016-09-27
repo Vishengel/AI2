@@ -1,5 +1,6 @@
 import java.io.*;
 import java.util.*;
+import java.lang.Math;
 
 public class Bayespam
 {
@@ -9,11 +10,19 @@ public class Bayespam
         NORMAL, SPAM
     }
 
-    // This a class with two counters (for regular and for spam)
-    static class Multiple_Counter
+    static enum ActionType
     {
-        int counter_spam    = 0;
+        TRAIN, TEST 
+    }
+
+    // This a class with two counters (for regular and for spam)
+    /// We added the probability per word to the value stored in the hashtable.
+    static class Multiple_Counter_Probability
+    {
+        int counter_spam = 0;
         int counter_regular = 0;
+        double probability_spam = 0;
+        double probability_regular = 0;
 
         // Increase one of the counters by one
         public void incrementCounter(MessageType type)
@@ -31,13 +40,13 @@ public class Bayespam
     private static File[] listing_spam = new File[0];
 
     // A hash table for the vocabulary (word searching is very fast in a hash table)
-    private static Hashtable <String, Multiple_Counter> vocab = new Hashtable <String, Multiple_Counter> ();
+    private static Hashtable <String, Multiple_Counter_Probability> vocab = new Hashtable <String, Multiple_Counter_Probability> ();
 
     
     // Add a word to the vocabulary
     private static void addWord(String word, MessageType type)
     {
-        Multiple_Counter counter = new Multiple_Counter();
+        Multiple_Counter_Probability counter = new Multiple_Counter_Probability();
 
         if ( vocab.containsKey(word) ){                  // if word exists already in the vocabulary..
             counter = vocab.get(word);                  // get the counter from the hashtable
@@ -45,6 +54,28 @@ public class Bayespam
         counter.incrementCounter(type);                 // increase the counter appropriately
 
         vocab.put(word, counter);                       // put the word with its counter into the hashtable
+    }
+
+    // Count words (spam and regular) in the vocabulary
+    private static Multiple_Counter_Probability countWords()
+    {
+        Multiple_Counter_Probability counterTotal = new Multiple_Counter_Probability();
+        Multiple_Counter_Probability counter = new Multiple_Counter_Probability();
+
+
+        for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
+        {   
+            String word;
+            
+            word = e.nextElement();
+            counter  = vocab.get(word);
+
+            counterTotal.counter_regular += counter.counter_regular;
+            counterTotal.counter_spam += counter.counter_spam;
+        }
+
+        return counterTotal;
+
     }
 
 
@@ -63,13 +94,14 @@ public class Bayespam
 
         listing_regular = dir_listing[0].listFiles();
         listing_spam    = dir_listing[1].listFiles();
+        System.out.println(listing_regular);
     }
 
     
     // Print the current content of the vocabulary
     private static void printVocab()
     {
-        Multiple_Counter counter = new Multiple_Counter();
+        Multiple_Counter_Probability counter = new Multiple_Counter_Probability();
 
         for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
         {   
@@ -85,7 +117,7 @@ public class Bayespam
 
 
     // Read the words from messages and add them to your vocabulary. The boolean type determines whether the messages are regular or not  
-    private static void readMessages(MessageType type)
+    private static void readMessages(MessageType type, ActionType action)
     throws IOException
     {
         File[] messages = new File[0];
@@ -98,6 +130,10 @@ public class Bayespam
         
         for (int i = 0; i < messages.length; ++i)
         {
+            double logPsum_spam = 0;
+            double logPsum_regular = 0;
+            Multiple_Counter_Probability probabilities = new Multiple_Counter_Probability();
+
             FileInputStream i_s = new FileInputStream( messages[i] );
             BufferedReader in = new BufferedReader(new InputStreamReader(i_s));
             String line;
@@ -109,29 +145,71 @@ public class Bayespam
         
                 while (st.hasMoreTokens())                  // while there are stille words left..
                 {
-		    /// Temporarily store token for parsing
-		    String nextWord = st.nextToken();
-		    /// Make word lower case, remove every symbol that is not a lower case letter
-		    nextWord = nextWord.toLowerCase().replaceAll("[^a-z]", "");
-		    /// Only add words to the vocabulary with more than three characters
-		    if (nextWord.length() >= 4) {	      
-		      addWord(nextWord, type);                  // add them to the vocabulary
-		    }
+        		    /// Temporarily store token for parsing
+        		    String nextWord = st.nextToken();
+        		    /// Make word lower case, remove every symbol that is not a lower case letter
+        		    nextWord = nextWord.toLowerCase().replaceAll("[^a-z]", "");
+        		    /// Only add words to the vocabulary with more than three characters
+        		    if (nextWord.length() >= 4) {
+                        if (action == ActionType.TRAIN) {
+                            addWord(nextWord, type);                  // add them to the vocabulary
+                        } else if (vocab.get(nextWord) != null) {
+                            probabilities = vocab.get(nextWord);
+                            logPsum_spam += probabilities.probability_spam;
+                            logPsum_regular += probabilities.probability_regular;
+                        } 
+        		    }
                 }
             }
+
+            /// calculate probability
+
+            /// check how bad it is
 
             in.close();
         }
     }
 
-    private static void trainClassifier() {
-      long nMessagesRegular = listing_regular.length;
-      long nMessagesSpam = listing_spam.length;
-      long nMessagesTotal = nMessagesRegular + nMessagesSpam;
-      long pRegular = nMessagesRegular / nMessagesTotal;
-      long pSpam = nMessagesSpam / nMessagesTotal;
 
-      
+    private static void trainClassifier() {
+        /// Define parameter
+        double epsilon = 1;
+
+        ///  Computing a priori class probabilities.
+        long nMessagesRegular = listing_regular.length;
+        long nMessagesSpam = listing_spam.length;
+        long nMessagesTotal = nMessagesRegular + nMessagesSpam;
+        double pRegular = Math.log(nMessagesRegular / nMessagesTotal);
+        double pSpam = Math.log(nMessagesSpam / nMessagesTotal);
+        /// Computing class conditional word likelihoods
+        Multiple_Counter_Probability counter = countWords();
+        long nWordsRegular = counter.counter_regular;
+        long nWordsSpam = counter.counter_spam;
+        /// Looping through the vocabulary calculating the probability for spam and regular per word.
+        Multiple_Counter_Probability probabilities = new Multiple_Counter_Probability();
+        for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
+        {   
+            String word;
+            
+            word = e.nextElement();
+            probabilities  = vocab.get(word);
+
+            if (probabilities.counter_spam == 0) {
+                probabilities.probability_spam = Math.log(epsilon / (nWordsRegular+nWordsSpam));
+            } else {
+               probabilities.probability_spam = Math.log(probabilities.counter_spam/nWordsSpam); 
+            }
+
+            if (probabilities.counter_regular == 0) {
+                probabilities.probability_regular = Math.log(epsilon / (nWordsRegular+nWordsSpam));
+            } else {
+                probabilities.probability_regular = Math.log(probabilities.counter_regular/nWordsRegular);    
+            }
+
+            vocab.put(word, probabilities);
+        }
+
+
     }
    
     public static void main(String[] args)
@@ -139,9 +217,10 @@ public class Bayespam
     {
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
+        File dir_location_test = new File( args[1]);
         
         // Check if the cmd line arg is a directory
-        if ( !dir_location.isDirectory() )
+        if ( !dir_location.isDirectory() || !dir_location_test.isDirectory())
         {
             System.out.println( "- Error: cmd line arg not a directory.\n" );
             Runtime.getRuntime().exit(0);
@@ -157,7 +236,8 @@ public class Bayespam
         // Print out the hash table
         //printVocab();
 
-	trainClassifier();
+	   /// Start the training.
+       trainClassifier();
         
         // Now all students must continue from here:
         //
