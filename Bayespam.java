@@ -39,6 +39,16 @@ public class Bayespam
     private static File[] listing_regular = new File[0];
     private static File[] listing_spam = new File[0];
 
+    /// Probabilities for being spam or regular
+    private static double pRegular = 0;
+    private static double pSpam = 0;
+
+    /// Confusion Matrix
+    private static double true_regular = 0;
+    private static double true_spam = 0;
+    private static double false_regular = 0;
+    private static double false_spam = 0;
+
     // A hash table for the vocabulary (word searching is very fast in a hash table)
     private static Hashtable <String, Multiple_Counter_Probability> vocab = new Hashtable <String, Multiple_Counter_Probability> ();
 
@@ -94,7 +104,6 @@ public class Bayespam
 
         listing_regular = dir_listing[0].listFiles();
         listing_spam    = dir_listing[1].listFiles();
-        System.out.println(listing_regular);
     }
 
     
@@ -130,8 +139,8 @@ public class Bayespam
         
         for (int i = 0; i < messages.length; ++i)
         {
-            double logPsum_spam = 0;
-            double logPsum_regular = 0;
+            double pSum_spam = 0;
+            double pSum_regular = 0;
             Multiple_Counter_Probability probabilities = new Multiple_Counter_Probability();
 
             FileInputStream i_s = new FileInputStream( messages[i] );
@@ -149,22 +158,38 @@ public class Bayespam
         		    String nextWord = st.nextToken();
         		    /// Make word lower case, remove every symbol that is not a lower case letter
         		    nextWord = nextWord.toLowerCase().replaceAll("[^a-z]", "");
+                    // nextWord = nextWord.toLowerCase();
         		    /// Only add words to the vocabulary with more than three characters
         		    if (nextWord.length() >= 4) {
                         if (action == ActionType.TRAIN) {
                             addWord(nextWord, type);                  // add them to the vocabulary
                         } else if (vocab.get(nextWord) != null) {
                             probabilities = vocab.get(nextWord);
-                            logPsum_spam += probabilities.probability_spam;
-                            logPsum_regular += probabilities.probability_regular;
+                            pSum_spam += probabilities.probability_spam;
+                            pSum_regular += probabilities.probability_regular;
                         } 
         		    }
                 }
             }
 
-            /// calculate probability
-
-            /// check how bad it is
+            if (action == ActionType.TEST) {
+                double pMsg_spam =  pSpam + pSum_spam;
+                double pMsg_regular = pRegular + pSum_regular;
+                // System.out.println("regular " + pMsg_regular + " spam " + pMsg_regular);
+                if (pMsg_regular > pMsg_spam) {
+                    if (type == MessageType.NORMAL) {
+                        true_regular++;
+                    } else {
+                        false_regular++;
+                    }
+                } else {
+                    if (type == MessageType.SPAM) {
+                        true_spam++;
+                    } else {
+                        false_spam++;
+                    }
+                }
+            }
 
             in.close();
         }
@@ -176,15 +201,15 @@ public class Bayespam
         double epsilon = 1;
 
         ///  Computing a priori class probabilities.
-        long nMessagesRegular = listing_regular.length;
-        long nMessagesSpam = listing_spam.length;
-        long nMessagesTotal = nMessagesRegular + nMessagesSpam;
-        double pRegular = Math.log(nMessagesRegular / nMessagesTotal);
-        double pSpam = Math.log(nMessagesSpam / nMessagesTotal);
+        double nMessagesRegular = listing_regular.length;
+        double nMessagesSpam = listing_spam.length;
+        double nMessagesTotal = nMessagesRegular + nMessagesSpam;
+        pRegular = Math.log(nMessagesRegular / nMessagesTotal);
+        pSpam = Math.log(nMessagesSpam / nMessagesTotal);
         /// Computing class conditional word likelihoods
         Multiple_Counter_Probability counter = countWords();
-        long nWordsRegular = counter.counter_regular;
-        long nWordsSpam = counter.counter_spam;
+        double nWordsRegular = counter.counter_regular;
+        double nWordsSpam = counter.counter_spam;
         /// Looping through the vocabulary calculating the probability for spam and regular per word.
         Multiple_Counter_Probability probabilities = new Multiple_Counter_Probability();
         for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
@@ -209,6 +234,14 @@ public class Bayespam
             vocab.put(word, probabilities);
         }
 
+        System.out.println(nMessagesRegular);
+        System.out.println(nMessagesSpam);
+        System.out.println(nMessagesTotal);
+        System.out.println("pRegular" + pRegular);
+        System.out.println("pSpam" + pSpam);
+        System.out.println(nWordsRegular);
+        System.out.println(nWordsSpam);
+
 
     }
    
@@ -230,14 +263,32 @@ public class Bayespam
         listDirs(dir_location);
 
         // Read the e-mail messages
-        readMessages(MessageType.NORMAL);
-        readMessages(MessageType.SPAM);
+        readMessages(MessageType.NORMAL, ActionType.TRAIN);
+        readMessages(MessageType.SPAM, ActionType.TRAIN);
 
         // Print out the hash table
         //printVocab();
 
 	   /// Start the training.
        trainClassifier();
+
+       /// List directories in test folder
+       listDirs(dir_location_test);
+
+       ///Testing
+        readMessages(MessageType.NORMAL, ActionType.TEST);
+        readMessages(MessageType.SPAM, ActionType.TEST);
+
+        System.out.println("True regular: " + true_regular + " False spam: " + false_spam);
+        System.out.println("False regular: " + false_regular + " True spam: " + true_spam);
+
+        double percentageSpam = (true_spam / (true_spam+false_regular))*100.0;
+        double percentageRegular = (true_regular / (true_regular+false_spam))*100.0;
+        double averall = ((true_spam+true_regular) / (true_spam+false_regular+true_regular+false_spam))*100.0;        
+
+        System.out.println("Performance spam: " + percentageSpam + " %");
+        System.out.println("Performance regular: " + percentageRegular + " %");
+        System.out.println("Performance overall: " + averall + " %");
         
         // Now all students must continue from here:
         //
