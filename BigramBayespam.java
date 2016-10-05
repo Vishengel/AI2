@@ -48,11 +48,16 @@ public class BigramBayespam
     private static double true_spam = 0;
     private static double false_regular = 0;
     private static double false_spam = 0;
+    
+    /// Define parameters; /// in order to be able to give the parameters as input in the terminal
+    private static double epsilon = 1;
+    private static int minWordLength = 4;
+    private static int freqThreshold = 1;
 
     // A hash table for the vocabulary (word searching is very fast in a hash table)
     private static Hashtable <String, Multiple_Counter_Probability> vocab = new Hashtable <String, Multiple_Counter_Probability> ();
 
-    
+
     // Add a word to the vocabulary
     private static void addWord(String word, MessageType type)
     {
@@ -169,7 +174,7 @@ public class BigramBayespam
         		    /// Make word lower case, remove every symbol that is not a lower case letter
         		    bigram = word1.toLowerCase().replaceAll("[^a-z]", "") + " " + word2.toLowerCase().replaceAll("[^a-z]", "");
         		    /// Only add words to the vocabulary with more than three characters
-        		    if (word1.length() >= 4 && word2.length() >=4) {
+        		    if (word1.length() >= minWordLength && word2.length() >= minWordLength) {
                         if (action == ActionType.TRAIN) {
                             addWord(bigram, type);                  // add them to the vocabulary
                         } else if (vocab.get(bigram) != null) {
@@ -207,9 +212,6 @@ public class BigramBayespam
 
 
     private static void trainClassifier() {
-        /// Define parameter
-        double epsilon = 1;
-
         ///  Computing a priori class probabilities.
         double nMessagesRegular = listing_regular.length;
         double nMessagesSpam = listing_spam.length;
@@ -244,7 +246,9 @@ public class BigramBayespam
             vocab.put(word, probabilities);
         }
 
+        System.out.println("size" + vocab.size());
         applyFreqThreshold();
+        System.out.println("size" + vocab.size());
 
         System.out.println(nMessagesRegular);
         System.out.println(nMessagesSpam);
@@ -268,9 +272,8 @@ public class BigramBayespam
             word = e.nextElement();
             counter  = vocab.get(word);
 
-            if (counter.counter_regular + counter.counter_spam < 2) {
+            if (counter.counter_regular + counter.counter_spam < freqThreshold) {
                 vocab.remove(word);
-                System.out.println(word);
             }
         }
     }
@@ -278,6 +281,13 @@ public class BigramBayespam
     public static void main(String[] args)
     throws IOException
     {
+        /// in order to be able to give the parameters as input in the terminal
+        if (args.length > 2) {
+            epsilon = Double.parseDouble(args[2]);
+            freqThreshold = Integer.parseInt(args[3]);
+            minWordLength = Integer.parseInt(args[4]);
+        }
+
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
         File dir_location_test = new File( args[1]);

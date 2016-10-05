@@ -49,6 +49,12 @@ public class Bayespam
     private static double false_regular = 0;
     private static double false_spam = 0;
 
+    /// Define parameters; /// in order to be able to give the parameters as input in the terminal
+    private static double epsilon = 1;
+    private static int minWordLength = 4;
+    private static int freqThreshold = 1;
+
+
     // A hash table for the vocabulary (word searching is very fast in a hash table)
     private static Hashtable <String, Multiple_Counter_Probability> vocab = new Hashtable <String, Multiple_Counter_Probability> ();
 
@@ -160,7 +166,7 @@ public class Bayespam
         		    nextWord = nextWord.toLowerCase().replaceAll("[^a-z]", "");
                     // nextWord = nextWord.toLowerCase();
         		    /// Only add words to the vocabulary with more than three characters
-        		    if (nextWord.length() >= 4) {
+        		    if (nextWord.length() >= minWordLength) {
                         if (action == ActionType.TRAIN) {
                             addWord(nextWord, type);                  // add them to the vocabulary
                         } else if (vocab.get(nextWord) != null) {
@@ -197,8 +203,7 @@ public class Bayespam
 
 
     private static void trainClassifier() {
-        /// Define parameter
-        double epsilon = 1;
+        
 
         ///  Computing a priori class probabilities.
         double nMessagesRegular = listing_regular.length;
@@ -234,6 +239,10 @@ public class Bayespam
             vocab.put(word, probabilities);
         }
 
+        System.out.println("size" + vocab.size());
+        applyFreqThreshold();
+        System.out.println("size" + vocab.size());
+
         System.out.println(nMessagesRegular);
         System.out.println(nMessagesSpam);
         System.out.println(nMessagesTotal);
@@ -244,10 +253,34 @@ public class Bayespam
 
 
     }
+
+    private static void applyFreqThreshold()
+    {
+         Multiple_Counter_Probability counter = new Multiple_Counter_Probability();
+
+        for (Enumeration<String> e = vocab.keys() ; e.hasMoreElements() ;)
+        {   
+            String word;
+            
+            word = e.nextElement();
+            counter  = vocab.get(word);
+
+            if (counter.counter_regular + counter.counter_spam < freqThreshold) {
+                vocab.remove(word);
+            }
+        }
+    }
    
     public static void main(String[] args)
     throws IOException
     {
+        /// in order to be able to give the parameters as input in the terminal
+        if (args.length > 2) {
+            epsilon = Double.parseDouble(args[2]);
+            freqThreshold = Integer.parseInt(args[3]);
+            minWordLength = Integer.parseInt(args[4]);
+        }
+
         // Location of the directory (the path) taken from the cmd line (first arg)
         File dir_location = new File( args[0] );
         File dir_location_test = new File( args[1]);
@@ -265,6 +298,9 @@ public class Bayespam
         // Read the e-mail messages
         readMessages(MessageType.NORMAL, ActionType.TRAIN);
         readMessages(MessageType.SPAM, ActionType.TRAIN);
+
+
+        
 
         // Print out the hash table
         //printVocab();
