@@ -212,6 +212,10 @@ public class BigramBayespam
 
 
     private static void trainClassifier() {
+        System.out.println("size" + vocab.size());
+        applyFreqThreshold();
+        System.out.println("size" + vocab.size());
+        
         ///  Computing a priori class probabilities.
         double nMessagesRegular = listing_regular.length;
         double nMessagesSpam = listing_spam.length;
@@ -246,9 +250,7 @@ public class BigramBayespam
             vocab.put(word, probabilities);
         }
 
-        System.out.println("size" + vocab.size());
-        applyFreqThreshold();
-        System.out.println("size" + vocab.size());
+        
 
         System.out.println(nMessagesRegular);
         System.out.println(nMessagesSpam);
