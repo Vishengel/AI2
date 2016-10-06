@@ -10,13 +10,14 @@ public class Bayespam
         NORMAL, SPAM
     }
 
+    /// We defined an additional enum in order to re-use code in readmessages.
     static enum ActionType
     {
         TRAIN, TEST 
     }
 
     // This a class with two counters (for regular and for spam)
-    /// We added the probability per word to the value stored in the hashtable.
+    /// We added the probability per word for each category to the value stored in the hashtable.
     static class Multiple_Counter_Probability
     {
         int counter_spam = 0;
@@ -49,7 +50,8 @@ public class Bayespam
     private static double false_regular = 0;
     private static double false_spam = 0;
 
-    /// Define parameters; /// in order to be able to give the parameters as input in the terminal
+    /// Define parameters; 
+    /// in order to be able to give the parameters as input in the terminal
     private static double epsilon = 1;
     private static int minWordLength = 4;
     private static int freqThreshold = 1;
@@ -132,6 +134,7 @@ public class Bayespam
 
 
     // Read the words from messages and add them to your vocabulary. The boolean type determines whether the messages are regular or not  
+    ///Depending of the actiontype the function adds the words to vocab or calculates the probabilities of the words and the messages
     private static void readMessages(MessageType type, ActionType action)
     throws IOException
     {
@@ -170,6 +173,7 @@ public class Bayespam
                         if (action == ActionType.TRAIN) {
                             addWord(nextWord, type);                  // add them to the vocabulary
                         } else if (vocab.get(nextWord) != null) {
+                            /// calculating the probability of the message being spam or regular for each word
                             probabilities = vocab.get(nextWord);
                             pSum_spam += probabilities.probability_spam;
                             pSum_regular += probabilities.probability_regular;
@@ -178,6 +182,7 @@ public class Bayespam
                 }
             }
 
+            /// This calculates the final probability of message being regular or spam and compares the two
             if (action == ActionType.TEST) {
                 double pMsg_spam =  pSpam + pSum_spam;
                 double pMsg_regular = pRegular + pSum_regular;
@@ -201,11 +206,10 @@ public class Bayespam
         }
     }
 
-
+    /// We wrote this function to calculate all probabilities that are needed before you can start testing
     private static void trainClassifier() {
-        System.out.println("size" + vocab.size());
+        /// Cleaning up the vocab if wanted (this could also be in main)
         applyFreqThreshold();
-        System.out.println("size" + vocab.size());
 
         ///  Computing a priori class probabilities.
         double nMessagesRegular = listing_regular.length;
@@ -241,19 +245,17 @@ public class Bayespam
             vocab.put(word, probabilities);
         }
 
-        
-
-        System.out.println(nMessagesRegular);
-        System.out.println(nMessagesSpam);
-        System.out.println(nMessagesTotal);
-        System.out.println("pRegular" + pRegular);
-        System.out.println("pSpam" + pSpam);
-        System.out.println(nWordsRegular);
-        System.out.println(nWordsSpam);
-
-
+        // To be able to find out where the weird things happen...
+        // System.out.println(nMessagesRegular);
+        // System.out.println(nMessagesSpam);
+        // System.out.println(nMessagesTotal);
+        // System.out.println("pRegular" + pRegular);
+        // System.out.println("pSpam" + pSpam);
+        // System.out.println(nWordsRegular);
+        // System.out.println(nWordsSpam);
     }
 
+    /// This function loops through the vocab, removing all words with too low counts.
     private static void applyFreqThreshold()
     {
          Multiple_Counter_Probability counter = new Multiple_Counter_Probability();
@@ -299,9 +301,6 @@ public class Bayespam
         readMessages(MessageType.NORMAL, ActionType.TRAIN);
         readMessages(MessageType.SPAM, ActionType.TRAIN);
 
-
-        
-
         // Print out the hash table
         //printVocab();
 
@@ -315,28 +314,19 @@ public class Bayespam
         readMessages(MessageType.NORMAL, ActionType.TEST);
         readMessages(MessageType.SPAM, ActionType.TEST);
 
+        /// print the confusion matrix
         System.out.println("True regular: " + true_regular + " False spam: " + false_spam);
         System.out.println("False regular: " + false_regular + " True spam: " + true_spam);
 
+        /// calculate the performance percentages
         double percentageSpam = (true_spam / (true_spam+false_regular))*100.0;
         double percentageRegular = (true_regular / (true_regular+false_spam))*100.0;
         double averall = ((true_spam+true_regular) / (true_spam+false_regular+true_regular+false_spam))*100.0;        
 
+        /// print the performance percentages
         System.out.println("Performance spam: " + percentageSpam + " %");
         System.out.println("Performance regular: " + percentageRegular + " %");
         System.out.println("Performance overall: " + averall + " %");
-        
-        // Now all students must continue from here:
-        //
-        // 1) A priori class probabilities must be computed from the number of regular and spam messages
-        // 2) The vocabulary must be clean: punctuation and digits must be removed, case insensitive
-        // 3) Conditional probabilities must be computed for every word
-        // 4) A priori probabilities must be computed for every word
-        // 5) Zero probabilities must be replaced by a small estimated value
-        // 6) Bayes rule must be applied on new messages, followed by argmax classification
-        // 7) Errors must be computed on the test set (FAR = false accept rate (misses), FRR = false reject rate (false alarms))
-        // 8) Improve the code and the performance (speed, accuracy)
-        //
-        // Use the same steps to create a class BigramBayespam which implements a classifier using a vocabulary consisting of bigrams
+
     }
 }
