@@ -1,4 +1,6 @@
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.lang.Math;
 
 public class KMeans extends ClusteringAlgorithm
 {
@@ -52,24 +54,147 @@ public class KMeans extends ClusteringAlgorithm
 		for (int ic = 0; ic < k; ic++)
 			clusters[ic] = new Cluster();
 	}
-
+	
+	public float[] addArrays(float[] sumArray, float[] nextArray)
+	{
+		for (int i=0; i<sumArray.length; i++)
+		{
+			sumArray[i] += nextArray[i];
+		}
+		
+		return sumArray;
+	}
+	
+	public float[] divideArray(float[] sumArray, int i) 
+	{
+		for (int j=0; j<sumArray.length; j++) 
+		{
+			sumArray[j] /= clusters[i].currentMembers.size();
+		}
+		
+		return sumArray;
+	}
+	
+	public void calculateClusterCenters() 
+	{
+		for (int i=0; i<clusters.length; i++) {
+			// System.out.println(i + "\n ________________________");
+			float[] sumArray = new float[200];
+			
+			for(Iterator<Integer> j = clusters[i].currentMembers.iterator(); j.hasNext() ;) 
+			{
+				sumArray = addArrays(sumArray, trainData.get(j.next()));
+			}
+			
+			/// Divide the sumArray by the total number of members of the cluster
+			/// Assign it to the cluster's prototype
+			clusters[i].prototype = divideArray(sumArray, i);
+			
+		}
+	}
+	
+	public double calculateEuclidianDistance(float[] currentClusterPrototype, float[] currentDataPoint) {
+		double sumOfSquares = 0.0;
+		
+		for (int i=0; i<currentClusterPrototype.length; i++)
+		{
+			sumOfSquares += Math.pow((currentClusterPrototype[i] - currentDataPoint[i]), 2);
+		}
+		
+		return Math.sqrt(sumOfSquares);
+	}
+	
+	public void makeNewPartition() 
+	{	
+		/// For each cluster, store the current members hash table in its previous members hash table
+		/// Clear the current members hash table
+		for (int i=0; i<clusters.length; i++)
+		{
+			clusters[i].previousMembers = clusters[i].currentMembers;
+			clusters[i].currentMembers.clear();
+		}
+		
+		for (int i=0; i<trainData.size(); i++)
+		{
+			int closestCluster = 0;
+			double currentClusterDistance, closestClusterDistance = Double.POSITIVE_INFINITY;
+			
+			for (int j=0; j<clusters.length; j++)
+			{
+				currentClusterDistance = calculateEuclidianDistance(clusters[j].prototype, trainData.get(i));
+				//System.out.println(currentClusterDistance);
+				//System.out.println(closestClusterDistance);
+				if (currentClusterDistance < closestClusterDistance)
+				{
+					closestCluster = j;
+					closestClusterDistance = currentClusterDistance;
+				}
+			}
+			/// Add the current data point to the cluster with the closest centre
+			clusters[closestCluster].currentMembers.add(i); 
+		}
+	}
+	
+	public boolean clustersAreStable() 
+	{
+		for (int i=0; i<clusters.length; i++)
+		{
+			/// If the previousMembers set of a certain cluster contains all members of its currentMembers set, and vice versa, the cluster is stable
+			/// Return false when there is an unstable cluster
+			if (!(clusters[i].previousMembers.containsAll(clusters[i].currentMembers) && clusters[i].currentMembers.containsAll(clusters[i].previousMembers)) ) 
+			{
+				return false;
+			}
+		}
+		/// All clusters are stable
+		return true;
+	}
+	
+	public void printClusters() 
+	{
+		for (int i=0; i<clusters.length; i++)
+		{
+			System.out.println(i + ": \n -------");
+			for(Iterator<Integer> j = clusters[i].currentMembers.iterator(); j.hasNext() ;) 
+			{
+				System.out.println(j.next());
+			}
+			System.out.println("\n");
+			
+		}
+	}
 
 	public boolean train()
 	{
 		int rand = 0;
+		int count = 0;
 		
 		for (int i=0; i<trainData.size(); i++)
 		{
 			/// Pick a random integer in the range (0, k-1)
 			rand = ThreadLocalRandom.current().nextInt(0, clusters.length);
 			/// Add the ID of the data point to the randomly picked cluster
-			clusters[rand] = i; 
+			clusters[rand].currentMembers.add(i); 
 		}
+		
+		//printClusters();
+		
+		while (!clustersAreStable()) 
+		{
+			calculateClusterCenters();		
+			makeNewPartition();
+			count++;
+		}
+		
 	 	//implement k-means algorithm here:
 		// Step 1: Select an initial random partioning with k clusters
 		// Step 2: Generate a new partition by assigning each datapoint to its closest cluster center
 		// Step 3: recalculate cluster centers
 		// Step 4: repeat until clustermembership stabilizes
+		
+		printClusters();
+		System.out.println(count);
+		
 		return false;
 	}
 
