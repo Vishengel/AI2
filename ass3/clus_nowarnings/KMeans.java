@@ -110,10 +110,10 @@ public class KMeans extends ClusteringAlgorithm
 		/// Clear the current members hash table
 		for (int i=0; i<clusters.length; i++)
 		{
-			clusters[i].previousMembers = clusters[i].currentMembers;
+			clusters[i].previousMembers = new HashSet<Integer>(clusters[i].currentMembers);
 			clusters[i].currentMembers.clear();
 		}
-		
+
 		for (int i=0; i<trainData.size(); i++)
 		{
 			int closestCluster = 0;
@@ -141,12 +141,15 @@ public class KMeans extends ClusteringAlgorithm
 		{
 			/// If the previousMembers set of a certain cluster contains all members of its currentMembers set, and vice versa, the cluster is stable
 			/// Return false when there is an unstable cluster
-			if (!(clusters[i].previousMembers.containsAll(clusters[i].currentMembers) && clusters[i].currentMembers.containsAll(clusters[i].previousMembers)) ) 
+			// if (!(clusters[i].previousMembers.containsAll(clusters[i].currentMembers) && clusters[i].currentMembers.containsAll(clusters[i].previousMembers)) ) 
+			if (!clusters[i].previousMembers.equals(clusters[i].currentMembers))
 			{
+				System.out.println("Unstable");
 				return false;
 			}
 		}
 		/// All clusters are stable
+		System.out.println("Stable");
 		return true;
 	}
 	
@@ -160,14 +163,20 @@ public class KMeans extends ClusteringAlgorithm
 				System.out.println(j.next());
 			}
 			System.out.println("\n");
-			
+			/*
+			System.out.println(i + ": \n -------");
+			for(Iterator<Integer> j = clusters[i].previousMembers.iterator(); j.hasNext() ;) 
+			{
+				System.out.println(j.next());
+			}
+			System.out.println("\n");	
+			*/
 		}
 	}
 
 	public boolean train()
 	{
 		int rand = 0;
-		int count = 0;
 		
 		for (int i=0; i<trainData.size(); i++)
 		{
@@ -177,13 +186,10 @@ public class KMeans extends ClusteringAlgorithm
 			clusters[rand].currentMembers.add(i); 
 		}
 		
-		//printClusters();
-		
 		while (!clustersAreStable()) 
 		{
 			calculateClusterCenters();		
 			makeNewPartition();
-			count++;
 		}
 		
 	 	//implement k-means algorithm here:
@@ -192,10 +198,18 @@ public class KMeans extends ClusteringAlgorithm
 		// Step 3: recalculate cluster centers
 		// Step 4: repeat until clustermembership stabilizes
 		
-		printClusters();
-		System.out.println(count);
-		
 		return false;
+	}
+	
+	public int getCluster(int i)
+	{
+		for (int j=0; j<clusters.length; j++) {
+			if (clusters[j].currentMembers.contains(i))
+			{
+				return j;
+			}
+		}
+		return -1;
 	}
 
 	public boolean test()
@@ -208,6 +222,37 @@ public class KMeans extends ClusteringAlgorithm
 		// count number of hits
 		// count number of requests
 		// set the global variables hitrate and accuracy to their appropriate value
+		int cluster = -1, prefetchCount = 0, requestCount = 0, hitCount = 0;
+		
+		for (int i=0; i<testData.size(); i++)
+		{
+			cluster = getCluster(i);
+			
+			for (int j=0; j<200; j++)
+			{
+				if (clusters[cluster].prototype[j] >= this.prefetchThreshold && testData.get(i)[j] == 1) 
+				{
+					prefetchCount++;
+					requestCount++;
+					hitCount++;
+				} else if (clusters[cluster].prototype[j] >= this.prefetchThreshold)
+				{
+					prefetchCount++;
+				} else if (testData.get(i)[j] == 1) 
+				{
+					requestCount++;
+				}
+			}
+			
+		}
+		
+		System.out.println("Prefetch count: " + prefetchCount);
+		System.out.println("Request count: " + requestCount);
+		System.out.println("Hit count: " + hitCount);
+		
+		this.hitrate = (double) hitCount / (double) requestCount;
+		this.accuracy = (double) hitCount / (double) prefetchCount;
+		
 		return true;
 	}
 

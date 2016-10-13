@@ -1,4 +1,5 @@
 import java.util.*;
+import java.awt.*;
 
 public class Kohonen extends ClusteringAlgorithm
 {
@@ -40,6 +41,16 @@ public class Kohonen extends ClusteringAlgorithm
 			}
 	}
 	
+	static class Coordinates {
+		int x;
+		int y;
+		
+		public Coordinates(int x, int y) {
+			this.x = x;
+			this.y = y;
+		}
+	}
+	
 	public Kohonen(int n, int epochs, Vector<float[]> trainData, Vector<float[]> testData, int dim)
 	{
 		this.n = n;
@@ -58,10 +69,59 @@ public class Kohonen extends ClusteringAlgorithm
 			for (int i2 = 0; i2 < n; i2++) {
 				clusters[i][i2] = new Cluster();
 				clusters[i][i2].prototype = new float[dim];
+				
+				/// Initialize cluster centre with random floats
+				for (int i3=0; i3<dim; i3++) 
+				{
+					clusters[i][i2].prototype[i3] = rnd.nextFloat();
+				}
+				
 			}
 		}
 	}
+	
+	public float calculateLearningRate(int t)
+	{
+		return (float) 0.8*(1 - t/this.epochs);
+	}
 
+	public float calculateRadius(int t)
+	{
+		return (this.n/2)*(1 - t/this.epochs);
+	}
+	
+	public double calculateEuclidianDistance(float[] currentClusterPrototype, float[] currentDataPoint) {
+		double sumOfSquares = 0.0;
+		
+		for (int i=0; i<currentClusterPrototype.length; i++)
+		{
+			sumOfSquares += Math.pow((currentClusterPrototype[i] - currentDataPoint[i]), 2);
+		}
+		
+		return Math.sqrt(sumOfSquares);
+	}
+	
+	public Coordinates findBMU(int t)
+	{
+		Coordinates closestCluster =  new Coordinates(0,0);
+		double currentClusterDistance;
+		double closestClusterDistance = Double.POSITIVE_INFINITY;
+		
+		for (int i = 0; i < n; i++)  {
+			for (int j = 0; j < n; j++) {
+				currentClusterDistance = calculateEuclidianDistance(clusters[i][j].prototype, trainData.get(i));
+				if (currentClusterDistance < closestClusterDistance)
+				{
+					closestClusterDistance = currentClusterDistance;
+					closestCluster.x = i;
+					closestCluster.y = j;
+				}
+			}
+		}
+		
+		
+		return closestCluster;
+	}
 	
 	public boolean train()
 	{
@@ -72,6 +132,37 @@ public class Kohonen extends ClusteringAlgorithm
 			// For each vector its Best Matching Unit is found, and :
 				// Step 4: All nodes within the neighbourhood of the BMU are changed, you don't have to use distance relative learning.
 		// Since training kohonen maps can take quite a while, presenting the user with a progress bar would be nice
+		
+		
+		int closestClusterI = -1, closestClusterJ = -1;
+		float learningRate, radius;
+		double currentClusterDistance, closestClusterDistance = Double.POSITIVE_INFINITY;
+		
+		for (int t=0; t < this.epochs; t++) /// t is the current epoch
+		{
+			System.out.println(t);
+			for (int i=0; i<this.trainData.size(); i++)
+			{
+				learningRate = calculateLearningRate(t);
+				radius = calculateRadius(t);
+				Coordinates BMU = findBMU(t);
+				System.out.println("BMU.x" + BMU.x);
+				System.out.println("BMU.y" + BMU.y);
+				for (int j=BMU.x-radius; j<BMU.x+radius; j++) /// first coordinate
+				{
+					for (int k =BMU.y-radius; k<BMU.y+radius; k++) ///second coordinate
+					{
+						///We have now 1 neighbourhood node
+						if (j!=BMU.x || k!=BMU.y) {
+							///That is not the BMU node
+							s
+						}
+					}
+				}
+			}	
+			
+		}
+		
 		return true;
 	}
 	
