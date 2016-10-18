@@ -85,9 +85,9 @@ public class Kohonen extends ClusteringAlgorithm
 		return (float) 0.8*(1 - t/this.epochs);
 	}
 
-	public float calculateRadius(int t)
+	public int calculateRadius(int t)
 	{
-		return (this.n/2)*(1 - t/this.epochs);
+		return (int)((this.n/2)*(1 - t/this.epochs));
 	}
 	
 	public double calculateEuclidianDistance(float[] currentClusterPrototype, float[] currentDataPoint) {
@@ -101,7 +101,7 @@ public class Kohonen extends ClusteringAlgorithm
 		return Math.sqrt(sumOfSquares);
 	}
 	
-	public Coordinates findBMU(int t)
+	public Coordinates findBMU(int currentVector)
 	{
 		Coordinates closestCluster =  new Coordinates(0,0);
 		double currentClusterDistance;
@@ -109,7 +109,7 @@ public class Kohonen extends ClusteringAlgorithm
 		
 		for (int i = 0; i < n; i++)  {
 			for (int j = 0; j < n; j++) {
-				currentClusterDistance = calculateEuclidianDistance(clusters[i][j].prototype, trainData.get(i));
+				currentClusterDistance = calculateEuclidianDistance(clusters[i][j].prototype, trainData.get(currentVector));
 				if (currentClusterDistance < closestClusterDistance)
 				{
 					closestClusterDistance = currentClusterDistance;
@@ -123,6 +123,14 @@ public class Kohonen extends ClusteringAlgorithm
 		return closestCluster;
 	}
 	
+	public void updatePrototype(float learningRate, int i, Coordinates node)
+	{		
+		for (int j=0; j<dim; j++) 
+		{
+			clusters[node.x][node.y].prototype[j] = (1 - learningRate) * clusters[node.x][node.y].prototype[j] + learningRate * this.trainData.get(i)[j];
+		}
+	}
+	
 	public boolean train()
 	{
 		// Step 1: initialize map with random vectors (A good place to do this, is in the initialisation of the clusters)
@@ -134,36 +142,65 @@ public class Kohonen extends ClusteringAlgorithm
 		// Since training kohonen maps can take quite a while, presenting the user with a progress bar would be nice
 		
 		
-		int closestClusterI = -1, closestClusterJ = -1;
-		float learningRate, radius;
-		double currentClusterDistance, closestClusterDistance = Double.POSITIVE_INFINITY;
+		int closestClusterI = -1, closestClusterJ = -1, radius, lowerBoundJ = 0, upperBoundJ = n, lowerBoundK = 0, upperBoundK = n;
+		float learningRate;
+		Coordinates BMU, node = new Coordinates(-1,-1);
 		
 		for (int t=0; t < this.epochs; t++) /// t is the current epoch
-		{
-			System.out.println(t);
+		{	
+			radius = calculateRadius(t);
+			learningRate = calculateLearningRate(t);
+			//System.out.println(t);
 			for (int i=0; i<this.trainData.size(); i++)
 			{
-				learningRate = calculateLearningRate(t);
-				radius = calculateRadius(t);
-				Coordinates BMU = findBMU(t);
-				System.out.println("BMU.x" + BMU.x);
-				System.out.println("BMU.y" + BMU.y);
-				for (int j=BMU.x-radius; j<BMU.x+radius; j++) /// first coordinate
+				BMU = findBMU(i);
+				//System.out.print("found BMU");
+				//System.out.println("BMU(X,Y): " + BMU.x + ", " + BMU.y);
+				lowerBoundJ = ((BMU.x-radius<0) ? 0 : BMU.x-radius);
+				upperBoundJ = ((BMU.x+radius>n) ? n : BMU.x+radius);
+				
+				lowerBoundK = ((BMU.y-radius<0) ? 0 : BMU.y-radius);
+				upperBoundK = ((BMU.y+radius>n) ? n : BMU.y+radius);
+				
+				for (int j=lowerBoundJ; j<upperBoundJ; j++) /// first coordinate
 				{
-					for (int k =BMU.y-radius; k<BMU.y+radius; k++) ///second coordinate
+					//System.out.print("j: " + j);
+					for (int k=lowerBoundK; k<upperBoundK; k++) ///second coordinate
 					{
-						///We have now 1 neighbourhood node
-						if (j!=BMU.x || k!=BMU.y) {
-							///That is not the BMU node
-							s
-						}
+						node.x=j;
+						node.y=k;
+						/// We now have 1 neighbourhood node
+						updatePrototype(learningRate, i, node);
 					}
 				}
+				//System.out.print("neigbourhood updated");
 			}	
-			
+			System.out.print("Completed " + t + " / " + this.epochs + " epochs\r");
 		}
 		
+		for (int i=0; i<this.trainData.size(); i++)
+		{
+			BMU = findBMU(i);
+			clusters[BMU.x][BMU.y].currentMembers.add(i);
+		}
+		
+		System.out.println("");
+		
 		return true;
+	}
+	
+	public Coordinates getCluster(int i)
+	{
+		for (int j=0; j<this.n; j++) {
+			for (int k=0; k<this.n; k++)
+			{
+				if (clusters[j][k].currentMembers.contains(i))
+				{
+					return new Coordinates(j, k);
+				}
+			}	
+		}
+		return null;
 	}
 	
 	public boolean test()
@@ -176,6 +213,38 @@ public class Kohonen extends ClusteringAlgorithm
 		// count number of hits
 		// count number of requests
 		// set the global variables hitrate and accuracy to their appropriate value
+		int prefetchCount = 0, requestCount = 0, hitCount = 0;
+		Coordinates cluster = null;
+		
+		for (int i=0; i<testData.size(); i++)
+		{
+			cluster = getCluster(i);
+			
+			for (int j=0; j<this.dim; j++)
+			{
+				if (clusters[cluster.x][cluster.y].prototype[j] >= this.prefetchThreshold && testData.get(i)[j] == 1) 
+				{
+					prefetchCount++;
+					requestCount++;
+					hitCount++;
+				} else if (clusters[cluster.x][cluster.y].prototype[j] >= this.prefetchThreshold)
+				{
+					prefetchCount++;
+				} else if (testData.get(i)[j] == 1) 
+				{
+					requestCount++;
+				}
+			}
+			
+		}
+		
+		System.out.println("Prefetch count: " + prefetchCount);
+		System.out.println("Request count: " + requestCount);
+		System.out.println("Hit count: " + hitCount);
+		
+		this.hitrate = (double) hitCount / (double) requestCount;
+		this.accuracy = (double) hitCount / (double) prefetchCount;
+		
 		return true;
 	}
 
