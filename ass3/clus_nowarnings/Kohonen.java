@@ -41,6 +41,7 @@ public class Kohonen extends ClusteringAlgorithm
 			}
 	}
 	
+	/// Helper class to indicate a cluster in the 2D space.
 	static class Coordinates {
 		int x;
 		int y;
@@ -79,7 +80,8 @@ public class Kohonen extends ClusteringAlgorithm
 			}
 		}
 	}
-	
+
+	///Functions to calculate the learning rate and radius.
 	public float calculateLearningRate(int t)
 	{
 		return (float) 0.8*(1 - t/this.epochs);
@@ -90,6 +92,7 @@ public class Kohonen extends ClusteringAlgorithm
 		return (int)((this.n/2)*(1 - t/this.epochs));
 	}
 	
+	///Function to calculate the euclidian distance between a datapoint and the prototype of a cluster
 	public double calculateEuclidianDistance(float[] currentClusterPrototype, float[] currentDataPoint) {
 		double sumOfSquares = 0.0;
 		
@@ -101,12 +104,14 @@ public class Kohonen extends ClusteringAlgorithm
 		return Math.sqrt(sumOfSquares);
 	}
 	
+	/// Function which returns the BMU (cluster node closest to the datapoint)
 	public Coordinates findBMU(int currentVector)
 	{
 		Coordinates closestCluster =  new Coordinates(0,0);
 		double currentClusterDistance;
 		double closestClusterDistance = Double.POSITIVE_INFINITY;
 		
+		///looping thourgh all the nodes in the 2D space.
 		for (int i = 0; i < n; i++)  {
 			for (int j = 0; j < n; j++) {
 				currentClusterDistance = calculateEuclidianDistance(clusters[i][j].prototype, trainData.get(currentVector));
@@ -123,8 +128,10 @@ public class Kohonen extends ClusteringAlgorithm
 		return closestCluster;
 	}
 	
+	/// Uses the update formula to update the protoype
 	public void updatePrototype(float learningRate, int i, Coordinates node)
 	{		
+		///Looping through the clusters prototype array
 		for (int j=0; j<dim; j++) 
 		{
 			clusters[node.x][node.y].prototype[j] = (1 - learningRate) * clusters[node.x][node.y].prototype[j] + learningRate * this.trainData.get(i)[j];
@@ -133,38 +140,31 @@ public class Kohonen extends ClusteringAlgorithm
 	
 	public boolean train()
 	{
-		// Step 1: initialize map with random vectors (A good place to do this, is in the initialisation of the clusters)
-		// Repeat 'epochs' times:
-			// Step 2: Calculate the squareSize and the learningRate, these decrease lineary with the number of epochs.
-			// Step 3: Every input vector is presented to the map (always in the same order)
-			// For each vector its Best Matching Unit is found, and :
-				// Step 4: All nodes within the neighbourhood of the BMU are changed, you don't have to use distance relative learning.
-		// Since training kohonen maps can take quite a while, presenting the user with a progress bar would be nice
-		
-		
 		int closestClusterI = -1, closestClusterJ = -1, radius, lowerBoundJ = 0, upperBoundJ = n, lowerBoundK = 0, upperBoundK = n;
 		float learningRate;
-		Coordinates BMU, node = new Coordinates(-1,-1);
-		
+		Coordinates bmu, node = new Coordinates(-1,-1);
+
+		/// Looping until the max amount of epoch ahs been reached	
 		for (int t=0; t < this.epochs; t++) /// t is the current epoch
 		{	
+			/// each epoch, calculate the radius and learning because they change every epoch.
 			radius = calculateRadius(t);
 			learningRate = calculateLearningRate(t);
-			//System.out.println(t);
+			///Looping through the datapoints
 			for (int i=0; i<this.trainData.size(); i++)
 			{
-				BMU = findBMU(i);
-				//System.out.print("found BMU");
-				//System.out.println("BMU(X,Y): " + BMU.x + ", " + BMU.y);
-				lowerBoundJ = ((BMU.x-radius<0) ? 0 : BMU.x-radius);
-				upperBoundJ = ((BMU.x+radius>n) ? n : BMU.x+radius);
+				bmu = findBMU(i);
+				///calculating the neighbourhood for each new found bmu
+				///cutting off at the edges of the 2D space.
+				lowerBoundJ = ((bmu.x-radius<0) ? 0 : bmu.x-radius);
+				upperBoundJ = ((bmu.x+radius>n) ? n : bmu.x+radius);
 				
-				lowerBoundK = ((BMU.y-radius<0) ? 0 : BMU.y-radius);
-				upperBoundK = ((BMU.y+radius>n) ? n : BMU.y+radius);
+				lowerBoundK = ((bmu.y-radius<0) ? 0 : bmu.y-radius);
+				upperBoundK = ((bmu.y+radius>n) ? n : bmu.y+radius);
 				
+				///looping through the neighbourhood
 				for (int j=lowerBoundJ; j<upperBoundJ; j++) /// first coordinate
 				{
-					//System.out.print("j: " + j);
 					for (int k=lowerBoundK; k<upperBoundK; k++) ///second coordinate
 					{
 						node.x=j;
@@ -173,22 +173,25 @@ public class Kohonen extends ClusteringAlgorithm
 						updatePrototype(learningRate, i, node);
 					}
 				}
-				//System.out.print("neigbourhood updated");
-			}	
+			}
+
+			///progressbar	
 			System.out.print("Completed " + t + " / " + this.epochs + " epochs\r");
 		}
 		
+		///adding each datapoint to a cluster, by finding its BMU.
 		for (int i=0; i<this.trainData.size(); i++)
 		{
-			BMU = findBMU(i);
-			clusters[BMU.x][BMU.y].currentMembers.add(i);
+			bmu = findBMU(i);
+			clusters[bmu.x][bmu.y].currentMembers.add(i);
 		}
-		
+		///Erasing the progressbar
 		System.out.println("");
 		
 		return true;
 	}
 	
+	///Returns the cluster to which a certain datapoint belongs
 	public Coordinates getCluster(int i)
 	{
 		for (int j=0; j<this.n; j++) {
@@ -205,42 +208,39 @@ public class Kohonen extends ClusteringAlgorithm
 	
 	public boolean test()
 	{
-		// iterate along all clients
-		// for each client find the cluster of which it is a member
-		// get the actual testData (the vector) of this client
-		// iterate along all dimensions
-		// and count prefetched htmls
-		// count number of hits
-		// count number of requests
-		// set the global variables hitrate and accuracy to their appropriate value
 		int prefetchCount = 0, requestCount = 0, hitCount = 0;
 		Coordinates cluster = null;
 		
+		///looping over the test data to see for each client how the algorithm has been trained
 		for (int i=0; i<testData.size(); i++)
 		{
 			cluster = getCluster(i);
-			
+
+			///comparing the prototype array to the clients array
 			for (int j=0; j<this.dim; j++)
 			{
 				if (clusters[cluster.x][cluster.y].prototype[j] >= this.prefetchThreshold && testData.get(i)[j] == 1) 
 				{
+					///if the URL has been prefetched and request, increment all counters.
 					prefetchCount++;
 					requestCount++;
 					hitCount++;
 				} else if (clusters[cluster.x][cluster.y].prototype[j] >= this.prefetchThreshold)
 				{
+					/// if the URL has been prefetched, but not requested, on increment the prefetch counter.
 					prefetchCount++;
 				} else if (testData.get(i)[j] == 1) 
 				{
+					/// if the URL has been requested, but not prefetched, on increment the request counter.
 					requestCount++;
 				}
 			}
 			
 		}
 		
-		System.out.println("Prefetch count: " + prefetchCount);
-		System.out.println("Request count: " + requestCount);
-		System.out.println("Hit count: " + hitCount);
+		// System.out.println("Prefetch count: " + prefetchCount);
+		// System.out.println("Request count: " + requestCount);
+		// System.out.println("Hit count: " + hitCount);
 		
 		this.hitrate = (double) hitCount / (double) requestCount;
 		this.accuracy = (double) hitCount / (double) prefetchCount;
