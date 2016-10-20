@@ -55,6 +55,7 @@ public class KMeans extends ClusteringAlgorithm
 			clusters[ic] = new Cluster();
 	}
 	
+	/// We wrote some functions for array arithmetic to make the code less cluttered 
 	public float[] addArrays(float[] sumArray, float[] nextArray)
 	{
 		for (int i=0; i<sumArray.length; i++)
@@ -74,11 +75,12 @@ public class KMeans extends ClusteringAlgorithm
 		
 		return sumArray;
 	}
-	
+
+	/// A funtion which calculates the prototypes for each cluster.
 	public void calculateClusterCenters() 
 	{
+		///Looping throuh all the clusters
 		for (int i=0; i<clusters.length; i++) {
-			// System.out.println(i + "\n ________________________");
 			float[] sumArray = new float[200];
 			
 			for(Iterator<Integer> j = clusters[i].currentMembers.iterator(); j.hasNext() ;) 
@@ -93,6 +95,7 @@ public class KMeans extends ClusteringAlgorithm
 		}
 	}
 	
+	/// A function to calculate the euclidian distance between a datapoint and a prototype of a cluster.
 	public double calculateEuclidianDistance(float[] currentClusterPrototype, float[] currentDataPoint) {
 		double sumOfSquares = 0.0;
 		
@@ -104,6 +107,7 @@ public class KMeans extends ClusteringAlgorithm
 		return Math.sqrt(sumOfSquares);
 	}
 	
+	/// A function to assign each datapoint to a cluster after the cluster prototypes have been updated.
 	public void makeNewPartition() 
 	{	
 		/// For each cluster, store the current members hash table in its previous members hash table
@@ -114,34 +118,34 @@ public class KMeans extends ClusteringAlgorithm
 			clusters[i].currentMembers.clear();
 		}
 
+		///Looping over all the datapoints
 		for (int i=0; i<trainData.size(); i++)
 		{
 			int closestCluster = 0;
 			double currentClusterDistance, closestClusterDistance = Double.POSITIVE_INFINITY;
 			
+			/// Looping over all the clusters to see which is closest to the datapoint.
 			for (int j=0; j<clusters.length; j++)
 			{
 				currentClusterDistance = calculateEuclidianDistance(clusters[j].prototype, trainData.get(i));
-				//System.out.println(currentClusterDistance);
-				//System.out.println(closestClusterDistance);
 				if (currentClusterDistance < closestClusterDistance)
 				{
 					closestCluster = j;
 					closestClusterDistance = currentClusterDistance;
 				}
 			}
+
 			/// Add the current data point to the cluster with the closest centre
 			clusters[closestCluster].currentMembers.add(i); 
 		}
 	}
 	
+	/// Function which return true if the clusters have remain the same since the last repartition. 
 	public boolean clustersAreStable() 
 	{
 		for (int i=0; i<clusters.length; i++)
 		{
-			/// If the previousMembers set of a certain cluster contains all members of its currentMembers set, and vice versa, the cluster is stable
 			/// Return false when there is an unstable cluster
-			// if (!(clusters[i].previousMembers.containsAll(clusters[i].currentMembers) && clusters[i].currentMembers.containsAll(clusters[i].previousMembers)) ) 
 			if (!clusters[i].previousMembers.equals(clusters[i].currentMembers))
 			{
 				System.out.println("Unstable");
@@ -152,30 +156,10 @@ public class KMeans extends ClusteringAlgorithm
 		System.out.println("Stable");
 		return true;
 	}
-	
-	public void printClusters() 
-	{
-		for (int i=0; i<clusters.length; i++)
-		{
-			System.out.println(i + ": \n -------");
-			for(Iterator<Integer> j = clusters[i].currentMembers.iterator(); j.hasNext() ;) 
-			{
-				System.out.println(j.next());
-			}
-			System.out.println("\n");
-			/*
-			System.out.println(i + ": \n -------");
-			for(Iterator<Integer> j = clusters[i].previousMembers.iterator(); j.hasNext() ;) 
-			{
-				System.out.println(j.next());
-			}
-			System.out.println("\n");	
-			*/
-		}
-	}
 
 	public boolean train()
 	{
+		///The first partition is random
 		int rand = 0;
 		
 		for (int i=0; i<trainData.size(); i++)
@@ -186,21 +170,17 @@ public class KMeans extends ClusteringAlgorithm
 			clusters[rand].currentMembers.add(i); 
 		}
 		
+		///calculate new cluster prototypes and repartitioning the data until all clusters remain stable.
 		while (!clustersAreStable()) 
 		{
 			calculateClusterCenters();		
 			makeNewPartition();
 		}
 		
-	 	//implement k-means algorithm here:
-		// Step 1: Select an initial random partioning with k clusters
-		// Step 2: Generate a new partition by assigning each datapoint to its closest cluster center
-		// Step 3: recalculate cluster centers
-		// Step 4: repeat until clustermembership stabilizes
-		
 		return false;
 	}
 	
+	///returns the cluster to which a certain datapoint belongs
 	public int getCluster(int i)
 	{
 		for (int j=0; j<clusters.length; j++) {
@@ -214,41 +194,38 @@ public class KMeans extends ClusteringAlgorithm
 
 	public boolean test()
 	{
-		// iterate along all clients. Assumption: the same clients are in the same order as in the testData
-		// for each client find the cluster of which it is a member
-		// get the actual testData (the vector) of this client
-		// iterate along all dimensions
-		// and count prefetched htmls
-		// count number of hits
-		// count number of requests
-		// set the global variables hitrate and accuracy to their appropriate value
 		int cluster = -1, prefetchCount = 0, requestCount = 0, hitCount = 0;
 		
+		///looping over the test data to see for each client how the algorithm has been trained
 		for (int i=0; i<testData.size(); i++)
 		{
 			cluster = getCluster(i);
 			
+			///comparing the prototype array to the clients array
 			for (int j=0; j<200; j++)
 			{
 				if (clusters[cluster].prototype[j] >= this.prefetchThreshold && testData.get(i)[j] == 1) 
 				{
+					///if the URL has been prefetched and request, increment all counters.
 					prefetchCount++;
 					requestCount++;
 					hitCount++;
 				} else if (clusters[cluster].prototype[j] >= this.prefetchThreshold)
 				{
+					/// if the URL has been prefetched, but not requested, on increment the prefetch counter.
 					prefetchCount++;
 				} else if (testData.get(i)[j] == 1) 
 				{
+					/// if the URL has been requested, but not prefetched, on increment the request counter.
 					requestCount++;
 				}
 			}
 			
 		}
 		
-		System.out.println("Prefetch count: " + prefetchCount);
-		System.out.println("Request count: " + requestCount);
-		System.out.println("Hit count: " + hitCount);
+		// System.out.println("Prefetch count: " + prefetchCount);
+		// System.out.println("Request count: " + requestCount);
+		// System.out.println("Hit count: " + hitCount);
 		
 		this.hitrate = (double) hitCount / (double) requestCount;
 		this.accuracy = (double) hitCount / (double) prefetchCount;
