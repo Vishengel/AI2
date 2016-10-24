@@ -2,6 +2,7 @@
 
 import random
 import numpy
+import time
 from problem_utils import *
 
 class State :
@@ -29,10 +30,10 @@ class State :
 
 
 class Map :
-    def __init__(self) :
+    def __init__(self, stop_crit = 0.01, gamma = 0.8) :
         self.states = {}
-        self.stop_crit = 0.01
-        self.gamma = 0.8
+        self.stop_crit = stop_crit
+        self.gamma = gamma
         self.n_rows = 0
         self.n_cols = 0
     
@@ -45,22 +46,76 @@ class Map :
         ### 1. initialize utilities to 0
         ### 2. repeat value iteration loop until largest change is smaller than
         ###    stop criterion
+        startingTime = time.time()
         
-        pass #placeholder, delete when implementing
+        for s in self.states.values():
+	  if not s.isGoal: 
+	    s.utility = 0.0
+       
+	stopCriterionMet = False
+        iterations = 0
         
-        
+       
+	while not stopCriterionMet:	
+	    largestUtilityDifference = 0.0 
+	    
+	    for s in self.states.values():
+		if not s.isGoal: 
+			if abs(s.utility - self.calculateBellmanUtility(s)) > largestUtilityDifference:
+			    largestUtilityDifference = abs(s.utility - self.calculateBellmanUtility(s))
+			    
+			s.utility = self.calculateBellmanUtility(s)
+			
+	    if largestUtilityDifference < self.stop_crit:
+		stopCriterionMet = True
+	    
+	    iterations += 1
+	  
+	runTime = time.time() - startingTime
+	print "Number of iterations used for value iteration: %d" % iterations
+	print "Time needed for value iteration: %.6f s" % runTime
+		
+    def calculateBellmanUtility(self, s):
+	actionUtilities = []
+	
+	for a in s.actions:
+	    utilitySum = 0
+	    
+	    for trans in s.transitions[a]:
+		utilitySum += trans[0] * trans[1].utility
+	
+	    actionUtilities.append(utilitySum)
+	
+        return s.reward + self.gamma * max(actionUtilities)
 
     ### you write this method
     def policyIteration(self) :
         ### 1. initialize random policy
         ### 2 repeat policy iteration loop until policy is stable
-    
-        pass #placeholder, delete when implementing
+        startingTime = time.time()
+        
+        for s in self.states.values():
+		if not s.isGoal:
+		    s.policy = random.choice(s.actions)
+		    
+	policyStable = False
+	iterations = 0
+	
+	while not policyStable:
+	   self.calculateUtilitiesLinear()
+	   policyStable = self.updatePolicy()
+	   iterations += 1
+	   
+	runTime = time.time() - startingTime
+	   
+        print "Number of iterations used for policy iteration: %d" % iterations
+        print "Time needed for policy iteration: %.6f s" % runTime 
     
     def calculateUtilitiesLinear(self) :
         n_states = len(self.states)
         coeffs = numpy.zeros((n_states, n_states))
         ordinate = numpy.zeros((n_states, 1))
+        
         for s in self.states.values() :
             row = s.id
             ordinate[row, 0] = s.reward
@@ -73,7 +128,21 @@ class Map :
         solution, _, _, _ = numpy.linalg.lstsq(coeffs, ordinate)
         for s in self.states.values() :
             if not s.isGoal :
-                s.utility = solution[s.id, 0]
+		s.utility = solution[s.id, 0]
+		
+		
+    def updatePolicy(self):
+	policyStable = True
+	
+	for s in self.states.values():
+		if not s.isGoal:
+		    bestAction = s.selectBestAction()
+		    if bestAction != s.policy:
+			policyStable = False
+			
+		    s.policy = bestAction
+		    
+	return policyStable	    
     
     def printActions(self) :
         self.printMaze(self.PrintType.ACTIONS)
@@ -234,6 +303,5 @@ def make2DProblem() :
             (0.1, m.states[filterState(s[0], getSuccessor(s[0], right(a)))])]
 
     return m
-        
-            
+                   
             
