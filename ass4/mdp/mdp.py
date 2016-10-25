@@ -46,68 +46,96 @@ class Map :
         ### 1. initialize utilities to 0
         ### 2. repeat value iteration loop until largest change is smaller than
         ###    stop criterion
+
+        #In order to keep the time
         startingTime = time.time()
         
+        #First initialize all non-goal state utilities to 0
         for s in self.states.values():
 	  if not s.isGoal: 
 	    s.utility = 0.0
        
+       	#Variables for the while-loop, stop critirion and the iterations counter
 	stopCriterionMet = False
         iterations = 0
         
-       
-	while not stopCriterionMet:	
+        #This is executed while the stop critirion is not yet met: the difference is still too big
+	while not stopCriterionMet:
+	    #for each iteration we keep track of the largest difference of all the utilities	
 	    largestUtilityDifference = 0.0 
 	    
+	    #For each non-goal state in the maze we recalculate the utility 
 	    for s in self.states.values():
-		if not s.isGoal: 
+		if not s.isGoal:
+			#We recalculate it using the Bellman equation
+			#When the difference in utility is bigger than any previous ones it is updated
 			if abs(s.utility - self.calculateBellmanUtility(s)) > largestUtilityDifference:
 			    largestUtilityDifference = abs(s.utility - self.calculateBellmanUtility(s))
-			    
+			 
+			#The utility of the state is updated  
 			s.utility = self.calculateBellmanUtility(s)
-			
+	    #We compare the utility difference to the stop critirion to see if another iteration is needed	
 	    if largestUtilityDifference < self.stop_crit:
 		stopCriterionMet = True
 	    
+	    #Counter
 	    iterations += 1
-	  
+	
+	#First things first, determin the time it took
 	runTime = time.time() - startingTime
+	#Printing information
 	print "Number of iterations used for value iteration: %d" % iterations
 	print "Time needed for value iteration: %.6f s" % runTime
-		
+
+    #Helper funtion for the value iteration, to calculate the Bellman equation	
     def calculateBellmanUtility(self, s):
+    	#Array we need to store values of which we later pick the maximum
 	actionUtilities = []
 	
+	#Looping over all actions for a state
 	for a in s.actions:
 	    utilitySum = 0
 	    
+	    #For each action we calculate the utility based on the possible transitions
 	    for trans in s.transitions[a]:
+	    	#probability * utility of the state we end up in
 		utilitySum += trans[0] * trans[1].utility
 	
+	    #Add the total utility of one action to the array
 	    actionUtilities.append(utilitySum)
 	
+	#Calculate the final utility using the Bellman equation and return it
         return s.reward + self.gamma * max(actionUtilities)
 
     ### you write this method
     def policyIteration(self) :
         ### 1. initialize random policy
         ### 2 repeat policy iteration loop until policy is stable
+        #In order to keep the time
         startingTime = time.time()
         
+        #We initialize by assigning a random policy to each state
         for s in self.states.values():
 		if not s.isGoal:
 		    s.policy = random.choice(s.actions)
-		    
+	
+	#Variables for the while-loop, stop critirion and the iterations counter	    
 	policyStable = False
 	iterations = 0
 	
+	#This is executed while the policies are still changing
 	while not policyStable:
+	   #We call the calculateUtilitiesLinear function to update the utilities of all states
 	   self.calculateUtilitiesLinear()
+	   #We call the updatePolicy function to update the policies of all states
+	   #The function returns true if non of the policies have changed, otherwise it returns false
 	   policyStable = self.updatePolicy()
+	   #Counter
 	   iterations += 1
-	   
+	  
+	#First things first, we calculate the time it took
 	runTime = time.time() - startingTime
-	   
+	#Printing information
         print "Number of iterations used for policy iteration: %d" % iterations
         print "Time needed for policy iteration: %.6f s" % runTime 
     
@@ -130,18 +158,22 @@ class Map :
             if not s.isGoal :
 		s.utility = solution[s.id, 0]
 		
-		
+    #A helper funtion we wrote which updates the policies for each state	
     def updatePolicy(self):
 	policyStable = True
 	
 	for s in self.states.values():
 		if not s.isGoal:
+		    #We use the selectBestAction function to find the best action for each state.
+		    #Which we set to be the policy for that state
 		    bestAction = s.selectBestAction()
+		    #Checking if it remained the same since the last iteration
 		    if bestAction != s.policy:
 			policyStable = False
 			
 		    s.policy = bestAction
-		    
+	
+	#Return true or false	    
 	return policyStable	    
     
     def printActions(self) :
