@@ -36,6 +36,12 @@ class Map :
         self.gamma = gamma
         self.n_rows = 0
         self.n_cols = 0
+        
+        self.valIt = 0
+	self.polIt = 0
+	
+	self.valRunTime = 0
+	self.polRunTime = 0
     
     class PrintType :
         ACTIONS = 0
@@ -57,7 +63,6 @@ class Map :
        
        	#Variables for the while-loop, stop critirion and the iterations counter
 	stopCriterionMet = False
-        iterations = 0
         
         #This is executed while the stop critirion is not yet met: the difference is still too big
 	while not stopCriterionMet:
@@ -79,13 +84,13 @@ class Map :
 		stopCriterionMet = True
 	    
 	    #Counter
-	    iterations += 1
+	    self.valIt += 1
 	
 	#First things first, determin the time it took
-	runTime = time.time() - startingTime
+	self.valRunTime = time.time() - startingTime
 	#Printing information
-	print "Number of iterations used for value iteration: %d" % iterations
-	print "Time needed for value iteration: %.6f s" % runTime
+	#print "Number of iterations used for value iteration: %d" % self.valIt
+	#print "Time needed for value iteration: %.6f s" % self.valRunTime
 
     #Helper funtion for the value iteration, to calculate the Bellman equation	
     def calculateBellmanUtility(self, s):
@@ -121,7 +126,6 @@ class Map :
 	
 	#Variables for the while-loop, stop critirion and the iterations counter	    
 	policyStable = False
-	iterations = 0
 	
 	#This is executed while the policies are still changing
 	while not policyStable:
@@ -131,13 +135,13 @@ class Map :
 	   #The function returns true if non of the policies have changed, otherwise it returns false
 	   policyStable = self.updatePolicy()
 	   #Counter
-	   iterations += 1
+	   self.polIt += 1
 	  
 	#First things first, we calculate the time it took
-	runTime = time.time() - startingTime
+	self.polRunTime = time.time() - startingTime
 	#Printing information
-        print "Number of iterations used for policy iteration: %d" % iterations
-        print "Time needed for policy iteration: %.6f s" % runTime 
+        #print "Number of iterations used for policy iteration: %d" % self.polIt
+        #print "Time needed for policy iteration: %.6f s" % self.polRunTime 
     
     def calculateUtilitiesLinear(self) :
         n_states = len(self.states)
@@ -222,7 +226,7 @@ class Map :
             to_print = to_print + '\n'
         print to_print
 
-def makeRNProblem() :
+def makeRNProblem(stop_crit, gamma) :
     """
     Creates the maze defined in Russell & Norvig. Utilizes functions defined
     in the problem_utils module.
@@ -241,7 +245,7 @@ def makeRNProblem() :
         else :
             return newState
 
-    m = Map()
+    m = Map(stop_crit, gamma)
     m.n_cols = cols;
     m.n_rows = rows;
     for i in range(m.n_cols) :
@@ -276,7 +280,7 @@ def makeRNProblem() :
             (0.1, m.states[filterState(s[0], getSuccessor(s[0], right(a)))])]
     return m
 
-def make2DProblem() :
+def make2DProblem(stop_crit, gamma) :
     """
     Creates the larger maze described in the exercise. Utilizes functions 
     defined in the problem_utils module.
@@ -295,7 +299,7 @@ def make2DProblem() :
         else :
             return newState
 
-    m = Map()
+    m = Map(stop_crit, gamma)
     m.n_cols = 10;
     m.n_rows = 10;
     for i in range(m.n_cols) :
